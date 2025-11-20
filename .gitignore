@@ -26,5 +26,6 @@ dist-ssr
 # Vite
 .env
 
-# My own docs
+# My own
 /docs/
+function.zip
