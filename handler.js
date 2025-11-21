@@ -24,11 +24,13 @@ async function getApiKey() {
 }
 
 exports.handler = async (event) => {
-  const allowedOrigin = process.env.CORS_ORIGIN || "*";
+  // Origin domain:
+  // CORS_ORIGIN_PROD when deployed for /prod (deployment stage)
+  const allowedOrigin = process.env.CORS_ORIGIN;// || "*";
   const headers = {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,x-api-key,Authorization",
+    "Access-Control-Allow-Headers": "Content-Type,X-Api-Key,Authorization",
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -53,7 +55,9 @@ exports.handler = async (event) => {
       timeout: 30000,
     });
 
-    const assistant = resp.data.choices?.[0]?.message;
+    const data = resp.data;
+    console.log(data); // Log the backend response
+    const assistant = data.choices?.[0]?.message || { content: "No response" };
     return { statusCode: 200, headers, body: JSON.stringify({ assistant }) };
   } catch (err) {
     console.error(err);
