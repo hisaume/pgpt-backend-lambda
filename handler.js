@@ -5,6 +5,9 @@
 const { default: axios } = require("axios");
 const AWS = require("aws-sdk");
 
+/*
+  OpenAI API Key retrieval from Secrets Manager
+*/
 async function getApiKey() {
   if (process.env.OPENAI_API_KEY)
     return process.env.OPENAI_API_KEY;
@@ -17,16 +20,33 @@ async function getApiKey() {
     : Buffer.from(secret.SecretBinary, 'base64').toString('ascii');
 
   if (typeof val === 'object' && val.OPENAI_API_KEY) {
-    return val.OPENAI_API_KEY; // Ensure only the API key is returned
+    return val.OPENAI_API_KEY;
   }
 
   throw new Error("Invalid secret format: OPENAI_API_KEY not found");
 }
 
 exports.handler = async (event) => {
-  // Origin domain:
-  // CORS_ORIGIN_PROD when deployed for /prod (deployment stage)
-  const allowedOrigin = process.env.CORS_ORIGIN;// || "*";
+  /*
+  !! ATTENTION !! [ Origin Domain ]
+
+    CORS_ORIGIN:
+        Used during development, to test a new implementation. Save as $LATEST version (mutable copy).
+        Frontend should point to /test stage in .env during debug/test.
+    CORS_ORIGIN_PROD:
+        Used for deployment.
+        Once the API is stable, save as a new version with:
+            const allowedOrigin = process.env.CORS_ORIGIN_PROD;
+        Then point 'Pgpt-Lambda-stable' Alias to it.
+        ("npm build" the Frontend, pointing to /prod stage in .env)
+
+  !! PUT IT BACK to CORS_ORIGIN for new testing/development,
+        otherwise the debug version of the Frontend won't be able to access the test API.
+
+  TLDR; Only momentarily change to CORS_ORIGIN_PROD when creating a stable version for production.
+        Otherwise it should always remain CORS_ORIGIN.
+  */
+  const allowedOrigin = process.env.CORS_ORIGIN;
   const headers = {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -38,8 +58,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    // I'm assuming Lambda Proxy Integration is used, so event.body needs parsing
-    // but leaving in the alternative.
+    // Assuming Lambda Proxy Integration is used. event.body needs parsing.
+    // Remove alternative once confirmed unnecessary
     console.log("Raw event:", JSON.stringify(event));
     let body;
     if (event.body) {
@@ -56,23 +76,9 @@ exports.handler = async (event) => {
       // Use event directly if body is not provided
       body = event;
     }
-    /*
-    try {
-      if (typeof event.body === "string") {
-        body = JSON.parse(event.body); // Parse if it's a string
-      } else {
-        body = event.body; // Use as-is if it's already an object
-      }
-    } catch (parseErr) {
-      console.error("Failed to parse body:", parseErr);
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Invalid JSON payload: failed to parse body" }),
-      };
-    }*/
+
     console.log("Parsed body:", body);
 
-    // Logic
     const { threadId, messages, model = "gpt-4o-mini", temperature = 0.3 } = body;
     if (!threadId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing threadId" }) };
@@ -85,9 +91,11 @@ exports.handler = async (event) => {
     }
     console.log("No errors on the parse + format. Proceeding to OpenAI API call.");
 
+    // Retrieve API Key
     const apiKey = await getApiKey();
     const chatMessages = messages.map(m => ({ role: m.role, content: m.content }));
 
+    // Query OpenAI API
     const resp = await axios.post("https://api.openai.com/v1/chat/completions", {
       model, messages: chatMessages, temperature,
     }, {
@@ -98,8 +106,7 @@ exports.handler = async (event) => {
     const data = resp.data;
     // Log the backend response
     console.log("OpenAI API Response:", JSON.stringify(data, null, 2));
-
-    // Return the assistant's message to the frontend
+    
     const assistant = data.choices?.[0]?.message || { content: "No response" };
     return { statusCode: 200, headers, body: JSON.stringify({ assistant }) };
   } catch (err) {
