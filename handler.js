@@ -26,25 +26,20 @@ async function getApiKey() {
   throw new Error("Invalid secret format: OPENAI_API_KEY not found");
 }
 
+/*
+  Main
+*/
 exports.handler = async (event) => {
   /*
-  !! ATTENTION !! [ Origin Domain ]
+  CORS_ORIGIN:
+    - Used during development for testing new implementations.
+    - Keep as CORS_ORIGIN unless creating a stable production version.
 
-    CORS_ORIGIN:
-        Used during development, to test a new implementation. Save as $LATEST version (mutable copy).
-        Frontend should point to /test stage in .env during debug/test.
-    CORS_ORIGIN_PROD:
-        Used for deployment.
-        Once the API is stable, save as a new version with:
-            const allowedOrigin = process.env.CORS_ORIGIN_PROD;
-        Then point 'Pgpt-Lambda-stable' Alias to it.
-        ("npm build" the Frontend, pointing to /prod stage in .env)
+  CORS_ORIGIN_PROD:
+    - Used for deployment to production.
+    - Temporarily switch to CORS_ORIGIN_PROD when creating a stable version.
 
-  !! PUT IT BACK to CORS_ORIGIN for new testing/development,
-        otherwise the debug version of the Frontend won't be able to access the test API.
-
-  TLDR; Only momentarily change to CORS_ORIGIN_PROD when creating a stable version for production.
-        Otherwise it should always remain CORS_ORIGIN.
+  Check also the frontend '.env' (e.g., /test for development, /prod for production).
   */
   const allowedOrigin = process.env.CORS_ORIGIN;
   const headers = {
