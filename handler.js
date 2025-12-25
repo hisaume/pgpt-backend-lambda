@@ -58,6 +58,7 @@ exports.handler = async (event) => {
     console.log("Raw event:", JSON.stringify(event));
     let body;
     if (event.body) {
+      console.log("!#! if (event.body");
       try {
         body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
       } catch (parseErr) {
@@ -69,6 +70,7 @@ exports.handler = async (event) => {
       }
     } else {
       // Use event directly if body is not provided
+      console.log("!#! else body = event");
       body = event;
     }
 
